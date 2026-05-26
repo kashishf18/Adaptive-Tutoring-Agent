@@ -1,25 +1,34 @@
 import os
-from llama_cpp import Llama
+import google.generativeai as genai
 
 class LLMEngine:
     def __init__(self):
-        model_path = os.getenv("MODEL_PATH", "models/llama-2-7b-chat.gguf")
-        context_length = int(os.getenv("CONTEXT_LENGTH", "2048"))
-        n_threads = int(os.getenv("N_THREADS", "4"))
+        api_key = os.getenv("GEMINI_API_KEY")
+        if not api_key:
+            print("Warning: GEMINI_API_KEY not set in environment!")
         
-        self.max_tokens = int(os.getenv("MAX_TOKENS", "512"))
+        genai.configure(api_key=api_key)
         
-        self.llm = Llama(
-            model_path=model_path,
-            n_ctx=context_length,
-            n_threads=n_threads,
-            verbose=False
+        # Use gemini-1.5-flash which is very fast and has a free tier
+        self.model = genai.GenerativeModel("gemini-1.5-flash")
+
+    def generate(
+        self,
+        prompt: str,
+        max_tokens: int = None,
+        temperature: float = 0.7,
+        stop: list = None
+    ) -> str:
+        
+        # Gemini handles max_tokens and temperature via generation_config
+        generation_config = genai.types.GenerationConfig(
+            temperature=temperature,
+            max_output_tokens=max_tokens or 2048,
+            stop_sequences=stop
         )
         
-    def generate(self, prompt: str) -> str:
-        response = self.llm(
+        response = self.model.generate_content(
             prompt,
-            max_tokens=self.max_tokens,
-            echo=False
+            generation_config=generation_config
         )
-        return response['choices'][0]['text'].strip()
+        return response.text.strip()
