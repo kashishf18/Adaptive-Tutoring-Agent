@@ -14,14 +14,13 @@ from dotenv import load_dotenv
 load_dotenv()
 
 
-def generate_quiz(llm, subject: str, topic: str, num_questions: int = 10) -> list:
+def generate_quiz(llm, subject: str, num_questions: int = 5) -> list:
     """
     Generate a multiple-choice quiz using the LLM.
 
     Args:
         llm: An LLMEngine instance.
         subject: The academic subject for quiz questions.
-        topic: The specific topic for the quiz.
         num_questions: Number of MCQ questions to generate.
 
     Returns:
@@ -30,15 +29,14 @@ def generate_quiz(llm, subject: str, topic: str, num_questions: int = 10) -> lis
     """
     from src.prompts import build_quiz_prompt
 
-    prompt = build_quiz_prompt(subject, topic, num_questions)
+    prompt = build_quiz_prompt(subject, num_questions)
 
     # Attempt generation (with one retry on parse failure)
     for attempt in range(2):
         response = llm.generate(
             prompt,
             max_tokens=2048,
-            temperature=0.5,  # Lower temp for more structured output
-            stop=["[INST]", "</s>"],
+            temperature=0.5
         )
 
         questions = _parse_quiz_json(response, num_questions)
@@ -48,10 +46,10 @@ def generate_quiz(llm, subject: str, topic: str, num_questions: int = 10) -> lis
         if attempt == 0:
             # Retry with a more explicit prompt
             prompt = (
-                f"<s>[INST] <<SYS>>\nYou are a quiz generator. Return ONLY valid JSON.\n<</SYS>>\n\n"
-                f"Generate {num_questions} multiple choice questions about {topic} in the context of {subject}. "
-                f"Format: [{{'question': '...', 'options': ['A) ...', 'B) ...', 'C) ...', 'D) ...'], "
-                f"'correct_index': 0}}]. Return ONLY the JSON array. [/INST]\n["
+                f"You are a quiz generator. Return ONLY a valid JSON array, no explanation.\n\n"
+                f"Generate {num_questions} multiple choice questions about {subject}.\n"
+                f'Format: [{{"question": "...", "options": ["A", "B", "C", "D"], "correct_index": 0}}]\n'
+                f"Return ONLY the JSON array."
             )
 
     return []
@@ -69,35 +67,25 @@ def _parse_quiz_json(response: str, expected_count: int) -> list:
         Parsed list of question dicts, or None on failure.
     """
     try:
-        # Find the first '[' which might be the start of our JSON array
-        first_idx = response.find('[')
-        if first_idx == -1:
-            # Maybe the prompt ended in '[' and the model just output the inside
-            response = "[" + response
-            first_idx = response.find('[')
-            if first_idx == -1:
-                return None
-                
-        text_to_parse = response[first_idx:]
-        
-        # Clean up common LLM formatting issues before decoding
-        text_to_parse = text_to_parse.replace("'", '"')  # Single to double quotes
-        
-        # Use JSONDecoder to parse the first valid JSON object and ignore trailing text
-        decoder = json.JSONDecoder()
-        try:
-            questions, _ = decoder.raw_decode(text_to_parse)
-        except json.JSONDecodeError:
-            # Attempt to fix trailing commas and retry
-            text_to_parse = re.sub(r',\s*]', ']', text_to_parse)
-            text_to_parse = re.sub(r',\s*}', '}', text_to_parse)
-            try:
-                questions, _ = decoder.raw_decode(text_to_parse)
-            except json.JSONDecodeError:
-                return None
-        
+        # Try to find a JSON array in the response
+        # The prompt ends with '[' so we prepend it
+        text = "[" + response if not response.strip().startswith("[") else response
+
+        # Try to extract JSON array using regex
+        match = re.search(r'\[.*\]', text, re.DOTALL)
+        if not match:
+            return None
+
+        json_str = match.group(0)
+
+        # Clean up common LLM formatting issues
+        json_str = json_str.replace("'", '"')  # Single to double quotes
+        json_str = re.sub(r',\s*]', ']', json_str)  # Trailing commas
+        json_str = re.sub(r',\s*}', '}', json_str)  # Trailing commas in objects
+
+        questions = json.loads(json_str)
+
         if not isinstance(questions, list):
-            print("Parsed JSON is not a list")
             return None
 
         # Validate each question structure
@@ -109,16 +97,10 @@ def _parse_quiz_json(response: str, expected_count: int) -> list:
                     "options": [str(opt) for opt in q["options"][:4]],
                     "correct_index": int(q["correct_index"]),
                 })
-            else:
-                print("Failed to validate question:", q)
 
-        if len(validated) < 3:
-            print("Not enough validated questions:", len(validated))
-            return None
-        return validated
+        return validated if len(validated) >= 1 else None
 
-    except Exception as e:
-        print("Exception during parse:", e)
+    except (json.JSONDecodeError, KeyError, TypeError, ValueError):
         return None
 
 

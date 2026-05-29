@@ -6,12 +6,14 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import List, Optional, Dict, Any
 
+import os
 from dotenv import load_dotenv
-load_dotenv()
+dotenv_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), '.env')
+load_dotenv(dotenv_path, override=True)
 
 from src.llm_engine import LLMEngine
 from src.mood import detect_mood
-from src.prompts import build_chat_prompt, build_feedback_prompt
+from src.prompts import build_chat_prompt, build_quiz_prompt, build_feedback_prompt
 from src.quiz import generate_quiz, evaluate_quiz, save_quiz_result, load_quiz_history
 
 app = FastAPI(title="Adaptive Tutoring API")
@@ -33,9 +35,8 @@ class ChatRequest(BaseModel):
     context: Optional[str] = ""
 
 class QuizRequest(BaseModel):
-    subject: str
-    topic: str
-    num_questions: Optional[int] = 10
+    subject: str = "General"
+    num_questions: int = 5
 
 class EvaluateRequest(BaseModel):
     subject: str
@@ -58,7 +59,7 @@ def chat_endpoint(req: ChatRequest):
 
 @app.post("/api/quiz/generate")
 def quiz_generate_endpoint(req: QuizRequest):
-    quiz = generate_quiz(llm, req.subject, req.topic, req.num_questions)
+    quiz = generate_quiz(llm, req.subject, req.num_questions)
     if not quiz:
         raise HTTPException(status_code=500, detail="Failed to generate quiz")
     return {"quiz": quiz}
@@ -71,7 +72,7 @@ def quiz_evaluate_endpoint(req: EvaluateRequest):
     save_quiz_result(score, total, req.subject)
     
     # Generate feedback
-    feedback_prompt = build_feedback_prompt(score, req.subject)
+    feedback_prompt = build_feedback_prompt(req.subject, score, total)
     feedback = llm.generate(feedback_prompt, max_tokens=300, temperature=0.7)
     
     return {

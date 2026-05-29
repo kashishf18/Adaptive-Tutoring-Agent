@@ -9,26 +9,20 @@ class LLMEngine:
         
         genai.configure(api_key=api_key)
         
-        # Use gemini-1.5-flash which is very fast and has a free tier
-        self.model = genai.GenerativeModel("gemini-1.5-flash")
+        # Use gemini-2.5-flash which is very fast and has a free tier
+        self.model = genai.GenerativeModel("gemini-2.5-flash")
 
-    def generate(
-        self,
-        prompt: str,
-        max_tokens: int = None,
-        temperature: float = 0.7,
-        stop: list = None
-    ) -> str:
-        
-        # Gemini handles max_tokens and temperature via generation_config
-        generation_config = genai.types.GenerationConfig(
-            temperature=temperature,
-            max_output_tokens=max_tokens or 2048,
-            stop_sequences=stop
-        )
-        
-        response = self.model.generate_content(
-            prompt,
-            generation_config=generation_config
-        )
-        return response.text.strip()
+    def generate(self, prompt: str, max_tokens: int = 1024, temperature: float = 0.7, stop=None) -> str:
+        try:
+            config = genai.types.GenerationConfig(
+                temperature=temperature,
+                max_output_tokens=max_tokens,
+                stop_sequences=stop if stop else []
+            )
+            response = self.model.generate_content(
+                prompt,
+                generation_config=config
+            )
+            return response.text.strip()
+        except Exception as e:
+            raise RuntimeError(f"LLM generation failed: {e}")
