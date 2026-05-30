@@ -1,9 +1,8 @@
-from src.mood import detect_mood, TONE_MAP
+
 
 # ── Chat Prompt ──────────────────────────────────────────────
 CHAT_TEMPLATE = """You are a friendly and knowledgeable {subject} tutor.
-Your response tone must be: {mood_tone}.
-Keep your answers clear, well-structured, and encouraging.
+Your response should be clear, well‑structured, and encouraging.
 If the student seems confused, use simple language and short steps.
 
 Student's question: {user_message}"""
@@ -15,14 +14,18 @@ Rules:
 - Each question must have exactly 4 answer options
 - Only one option is correct
 - correct_index must be an integer between 0 and 3 (0=first option, 3=last)
-- Return ONLY a valid JSON array — no explanation, no markdown, no code fences
+- complexity must be one of: "Easy", "Medium", "Hard"
+- explanation must be a brief explanation of why the answer is correct
+- Return ONLY a valid JSON array — no explanation outside of JSON, no markdown, no code fences
 
 Required JSON format:
 [
   {{
     "question": "Your question here?",
     "options": ["Option A", "Option B", "Option C", "Option D"],
-    "correct_index": 0
+    "correct_index": 0,
+    "complexity": "Medium",
+    "explanation": "Because X is Y."
   }}
 ]"""
 
@@ -39,11 +42,8 @@ Do not repeat the score back to the student. Write naturally."""
 # ── Prompt Builder Functions ──────────────────────────────────
 
 def build_chat_prompt(subject: str, user_message: str, context: str = "") -> str:
-    mood = detect_mood(user_message)
-    tone = TONE_MAP.get(mood, TONE_MAP["neutral"])
     prompt = CHAT_TEMPLATE.format(
         subject=subject,
-        mood_tone=tone,
         user_message=user_message
     )
     if context and context.strip():

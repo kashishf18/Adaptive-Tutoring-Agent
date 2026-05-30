@@ -2,19 +2,20 @@ import os
 import json
 import time
 from fastapi import FastAPI, HTTPException, Body
+from fastapi.responses import StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import List, Optional, Dict, Any
 
-import os
 from dotenv import load_dotenv
 dotenv_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), '.env')
 load_dotenv(dotenv_path, override=True)
 
 from src.llm_engine import LLMEngine
-from src.mood import detect_mood
+
 from src.prompts import build_chat_prompt, build_quiz_prompt, build_feedback_prompt
 from src.quiz import generate_quiz, evaluate_quiz, save_quiz_result, load_quiz_history
+from src.mood import detect_mood
 
 app = FastAPI(title="Adaptive Tutoring API")
 
@@ -36,6 +37,7 @@ class ChatRequest(BaseModel):
 
 class QuizRequest(BaseModel):
     subject: str = "General"
+    topic: str = ""
     num_questions: int = 5
 
 class EvaluateRequest(BaseModel):
@@ -50,12 +52,13 @@ class NoteRequest(BaseModel):
 def chat_endpoint(req: ChatRequest):
     mood = detect_mood(req.message)
     full_prompt = build_chat_prompt(req.subject, req.message, req.context)
-    response = llm.generate(full_prompt)
-    return {
-        "response": response,
-        "mood": mood,
-        "timestamp": time.time()
-    }
+    
+    def generate_events():
+        # Stream only text chunks (no mood)
+        for chunk in llm.generate_stream(full_prompt, temperature=0.2):
+            yield f"data: {json.dumps({'chunk': chunk})}\n\n"
+            
+    return StreamingResponse(generate_events(), media_type="text/event-stream")
 
 @app.post("/api/quiz/generate")
 def quiz_generate_endpoint(req: QuizRequest):

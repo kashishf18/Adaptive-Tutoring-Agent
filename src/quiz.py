@@ -48,7 +48,7 @@ def generate_quiz(llm, subject: str, num_questions: int = 5) -> list:
             prompt = (
                 f"You are a quiz generator. Return ONLY a valid JSON array, no explanation.\n\n"
                 f"Generate {num_questions} multiple choice questions about {subject}.\n"
-                f'Format: [{{"question": "...", "options": ["A", "B", "C", "D"], "correct_index": 0}}]\n'
+                f'Format: [{{"question": "...", "options": ["A", "B", "C", "D"], "correct_index": 0, "complexity": "Medium", "explanation": "..."}}]\n'
                 f"Return ONLY the JSON array."
             )
 
@@ -96,6 +96,8 @@ def _parse_quiz_json(response: str, expected_count: int) -> list:
                     "question": str(q["question"]),
                     "options": [str(opt) for opt in q["options"][:4]],
                     "correct_index": int(q["correct_index"]),
+                    "complexity": str(q.get("complexity", "Medium")),
+                    "explanation": str(q.get("explanation", "No explanation provided.")),
                 })
 
         return validated if len(validated) >= 1 else None
@@ -149,6 +151,7 @@ def evaluate_quiz(questions: list, answers: dict) -> tuple:
             "correct_answer": correct,
             "is_correct": is_correct,
             "correct_option": q["options"][correct] if correct < len(q["options"]) else "N/A",
+            "explanation": q.get("explanation", ""),
         })
 
     return score, total, results

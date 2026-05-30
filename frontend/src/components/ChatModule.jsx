@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect } from 'react'
 import axios from 'axios'
 import { Send, Save, Loader2 } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
+import ReactMarkdown from 'react-markdown'
 
 const ChatModule = () => {
   const [messages, setMessages] = useState([])
@@ -22,25 +23,63 @@ const ChatModule = () => {
     if (!input.trim() || !subject.trim()) return
 
     const userMsg = { role: 'user', content: input }
-    setMessages(prev => [...prev, userMsg])
+    setMessages(prev => [...prev, userMsg, { role: 'assistant', content: '', mood: 'neutral' }])
     setInput('')
     setLoading(true)
 
     try {
-      const res = await axios.post('http://localhost:8000/api/chat', {
-        subject,
-        message: userMsg.content,
-        context: ''
+      const res = await fetch('http://localhost:8000/api/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          subject,
+          message: userMsg.content,
+          context: ''
+        })
       })
-      const botMsg = { 
-        role: 'assistant', 
-        content: res.data.response, 
-        mood: res.data.mood 
+
+      const reader = res.body.getReader()
+      const decoder = new TextDecoder()
+      let done = false
+
+      setLoading(false)
+
+      while (!done) {
+        const { value, done: doneReading } = await reader.read()
+        done = doneReading
+        if (value) {
+          const chunkStr = decoder.decode(value, { stream: true })
+          const lines = chunkStr.split('\n')
+          
+          for (const line of lines) {
+            if (line.startsWith('data: ')) {
+              try {
+                const data = JSON.parse(line.slice(6))
+                setMessages(prev => {
+                  const newMsgs = [...prev]
+                  const lastMsg = newMsgs[newMsgs.length - 1]
+                  if (lastMsg && lastMsg.role === 'assistant') {
+                    if (data.mood) lastMsg.mood = data.mood
+                    if (data.chunk) lastMsg.content += data.chunk
+                  }
+                  return newMsgs
+                })
+              } catch (e) {
+                console.error("Error parsing stream data", e, line)
+              }
+            }
+          }
+        }
       }
-      setMessages(prev => [...prev, botMsg])
     } catch (err) {
-      setMessages(prev => [...prev, { role: 'assistant', content: 'Sorry, there was an error processing your request.', mood: 'neutral' }])
-    } finally {
+      setMessages(prev => {
+        const newMsgs = [...prev]
+        const lastMsg = newMsgs[newMsgs.length - 1]
+        if (lastMsg && lastMsg.role === 'assistant') {
+          lastMsg.content = 'Sorry, there was an error processing your request.'
+        }
+        return newMsgs
+      })
       setLoading(false)
     }
   }
@@ -94,8 +133,10 @@ const ChatModule = () => {
               key={i}
               className={`flex flex-col max-w-[80%] ${msg.role === 'user' ? 'ml-auto items-end' : 'mr-auto items-start'}`}
             >
-              <div className={`p-4 rounded-2xl ${msg.role === 'user' ? 'bg-primary text-white rounded-br-sm' : 'bg-surface border border-slate-700/50 rounded-bl-sm'}`}>
-                {msg.content}
+              <div className={`p-4 rounded-2xl break-words overflow-hidden ${msg.role === 'user' ? 'bg-primary text-white rounded-br-sm' : 'bg-surface border border-slate-700/50 rounded-bl-sm'}`}>
+                <div className="prose prose-invert prose-slate max-w-none text-sm md:text-base">
+                  <ReactMarkdown>{msg.content}</ReactMarkdown>
+                </div>
               </div>
               {msg.role === 'assistant' && (
                 <div className="flex items-center gap-2 mt-2">

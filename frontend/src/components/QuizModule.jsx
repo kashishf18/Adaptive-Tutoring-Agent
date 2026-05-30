@@ -18,7 +18,7 @@ const QuizModule = () => {
     setResults(null)
     setAnswers({})
     try {
-      const res = await axios.post('http://localhost:8000/api/quiz/generate', { subject, topic, num_questions: 3 })
+      const res = await axios.post('http://localhost:8000/api/quiz/generate', { subject, topic, num_questions: 10 })
       setQuiz(res.data.quiz)
     } catch (err) {
       alert('Failed to generate quiz. Check if backend is running.')
@@ -110,9 +110,14 @@ const QuizModule = () => {
             >
               {quiz.map((q, i) => (
                 <div key={i} className="bg-surface/50 border border-slate-700/50 p-6 rounded-2xl">
-                  <h3 className="text-lg font-medium mb-4">
-                    <span className="text-secondary font-bold mr-2">Q{i + 1}.</span> 
-                    {q.question}
+                  <h3 className="text-lg font-medium mb-4 flex items-center justify-between">
+                    <div>
+                      <span className="text-secondary font-bold mr-2">Q{i + 1}.</span> 
+                      {q.question}
+                    </div>
+                    <span className={`text-xs px-2 py-1 rounded-full border ${q.complexity === 'Hard' ? 'bg-red-500/20 text-red-400 border-red-500/50' : q.complexity === 'Medium' ? 'bg-yellow-500/20 text-yellow-400 border-yellow-500/50' : 'bg-green-500/20 text-green-400 border-green-500/50'}`}>
+                      {q.complexity}
+                    </span>
                   </h3>
                   <div className="space-y-2">
                     {q.options.map((opt, optIdx) => (
@@ -183,9 +188,13 @@ const QuizModule = () => {
                     {!res.is_correct && (
                       <p className="text-sm text-red-400 ml-8 mb-1">Your answer: {quiz[i].options[res.student_answer]}</p>
                     )}
-                    <p className={`text-sm ml-8 ${res.is_correct ? 'text-green-400' : 'text-slate-300'}`}>
+                    <p className={`text-sm ml-8 mb-2 ${res.is_correct ? 'text-green-400' : 'text-slate-300'}`}>
                       Correct answer: {res.correct_option}
                     </p>
+                    <div className="ml-8 mt-2 p-3 bg-slate-800/80 rounded border border-slate-700/50">
+                      <span className="text-xs text-accent font-bold mb-1 block">💡 Explanation</span>
+                      <p className="text-sm text-slate-300">{res.explanation}</p>
+                    </div>
                   </div>
                 ))}
               </div>
