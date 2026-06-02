@@ -8,9 +8,9 @@ function App() {
   const [activeTab, setActiveTab] = useState('chat')
 
   return (
-    <div className="min-h-screen bg-background flex flex-col md:flex-row">
+    <div className="h-screen bg-background flex flex-col md:flex-row overflow-auto">
       {/* Sidebar Navigation */}
-      <aside className="w-full md:w-64 glass-panel border-r border-slate-700/50 p-6 flex flex-col z-10 relative">
+      <aside className="w-full md:w-64 glass-panel border-r border-slate-700/50 p-6 flex flex-col z-20 relative sticky top-0 h-screen overflow-y-auto">
         <div className="mb-8 flex items-center gap-3">
           <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary to-secondary flex items-center justify-center text-white font-bold shadow-lg shadow-primary/30">
             ATA
@@ -58,7 +58,7 @@ function App() {
       </aside>
 
       {/* Main Content Area */}
-      <main className="flex-1 relative overflow-hidden flex flex-col">
+      <main className="flex-1 relative overflow-y-auto flex flex-col">
         {/* Background Decorative Gradients */}
         <div className="absolute top-[-20%] left-[-10%] w-[50%] h-[50%] rounded-full bg-primary/10 blur-[120px] pointer-events-none" />
         <div className="absolute bottom-[-20%] right-[-10%] w-[50%] h-[50%] rounded-full bg-secondary/10 blur-[120px] pointer-events-none" />

@@ -1,18 +1,24 @@
 # Adaptive Tutoring Agent
 
-An AI-powered tutoring application that provides personalized learning experiences across various subjects. It features a mood-aware chat interface, adaptive quiz generation, and a notes management system.
+An AI-powered tutoring application that provides personalized learning experiences across various subjects. It features a real-time mood-aware chat interface, adaptive quiz generation, and a notes management system.
 
 ## Feature Overview
 
-1. **Study Chat**: A conversational interface powered by a local LLM. It detects user mood (frustrated, happy, neutral, disengaged) and adapts its tone accordingly.
+1. **Study Chat**: A conversational interface powered by Google Gemini. It detects user mood (frustrated, happy, neutral, disengaged) and adapts its tone accordingly. Responses are streamed in real-time.
 2. **Quiz Module**: Generates subject-specific multiple-choice quizzes, evaluates answers, provides adaptive feedback, and tracks quiz history.
 3. **Notes Management**: Allows users to save important chat responses or manually write notes, persist them locally, and export them as JSON.
+
+## Architecture
+
+This project uses a modern decoupled architecture:
+- **Backend**: FastAPI providing REST endpoints and Server-Sent Events (SSE) for real-time streaming.
+- **Frontend**: Vite + React 19 + Tailwind CSS for a highly responsive, animated, and modern user interface.
 
 ## Prerequisites
 
 - **Python 3.9+**
-- **pip** package manager
-- (Optional) **C++ compiler** if you want to build `llama-cpp-python` with hardware acceleration.
+- **Node.js 18+** & npm
+- **Gemini API Key** (Set as `GEMINI_API_KEY` in your environment)
 
 ## Setup
 
@@ -22,18 +28,21 @@ An AI-powered tutoring application that provides personalized learning experienc
    cd adaptive-tutoring-agent
    ```
 
-2. **Create a virtual environment**:
+2. **Backend Setup**:
    ```bash
    python -m venv .venv
    # On Windows:
    .venv\Scripts\activate
    # On macOS/Linux:
    source .venv/bin/activate
+   
+   pip install -r requirements.txt
    ```
 
-3. **Install dependencies**:
+3. **Frontend Setup**:
    ```bash
-   pip install -r requirements.txt
+   cd frontend
+   npm install
    ```
 
 ## .env Guide
@@ -42,31 +51,24 @@ Create a `.env` file in the root of the project to configure the application:
 
 ```ini
 APP_TITLE="Adaptive Tutoring Agent"
-MODEL_PATH="models/llama-2-7b-chat.gguf"
-CONTEXT_LENGTH=2048
-N_THREADS=4
-MAX_TOKENS=512
+GEMINI_API_KEY="your_api_key_here"
 NOTES_FILE="data/notes.json"
 QUIZ_HISTORY_FILE="data/quiz_history.json"
 ```
 
-## How to Download Model
-
-By default, the application expects a Llama 2 7B Chat GGUF model.
-
-1. Create a `models` directory:
-   ```bash
-   mkdir models
-   ```
-2. Download the model (e.g., from TheBloke on Hugging Face):
-   ```bash
-   wget https://huggingface.co/TheBloke/Llama-2-7B-Chat-GGUF/resolve/main/llama-2-7b-chat.Q4_K_M.gguf -O models/llama-2-7b-chat.gguf
-   ```
-
 ## How to Run
 
-Start the Streamlit application:
+1. **Start the Backend API**:
+   ```bash
+   # From the project root
+   python -m uvicorn src.api:app --reload --host 0.0.0.0 --port 8000
+   ```
 
-```bash
-streamlit run src/app.py
-```
+2. **Start the Frontend**:
+   ```bash
+   # In a new terminal, from the frontend directory
+   cd frontend
+   npm run dev
+   ```
+
+Open your browser to the local URL provided by Vite (usually `http://localhost:5173`) to use the application.
